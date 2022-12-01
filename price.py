@@ -1,24 +1,25 @@
 #view market data in realtime
 import asyncio
-import websocket
+import websockets
 import os
 from dotenv import load_dotenv
 import time
-import math
 import hmac
 import hashlib  
 import base64
 import json 
-websocket
+import sys
 
 #load .env file and GLOBAL vars
 load_dotenv()
 URL = os.getenv('BASE_URL')
+URI = os.getenv('URI')
 KEY = os.getenv('KEY')
 PORT = os.getenv('PORT')
 PHRASE = os.getenv('PHRASE')
 SECRET = os.getenv('SECRET')
-TIMESTAMP =  math.ceil(time.time()/1000)
+s = time.gmtime(time.time())
+TIMESTAMP = time.strftime("%Y-%m-%dT%H:%M:%SZ", s)
 CURRENCY_LIST = ["BTC-USD", "ETH-USD", "USDT-USD", "ADA-USD"]
 '''
 =======REST  API HEADER========
@@ -63,21 +64,21 @@ subscription= {
     "passphrase": f"{PHRASE}",
     "timestamp": f"{TIMESTAMP}"
 }
-#this thing is the final signature used for all socket request but also REST api calls
+
 final_sub = json.dumps(subscription)
 
-#wss func to retrieve coin tickers(prices)/ connect to server
-# async def wss_func():
-#    wss_connector = await websockets.connect(URL)
-#    await wss_connector.send(final_sub)
-#    response = await websockets.recv()
-#    print(response)
-# asyncio.get_event_loop().run_until_complete(wss_func())
+async def wss_connector():        
+    async with websockets.connect(URI, ping_interval=None, max_size=None) as ws:
+        await ws.send(final_sub)
+        try:
+            processor = None
+            while True:
+                response = await ws.recv()
+                parsed = json.loads(response)
+                print(parsed)
+        except websockets.exceptions.ConnectionClosedError:
+            print("Error caught")
+            sys.exit(1)
+if __name__ == '__main__':
+    asyncio.run(wss_connector())      
 
-ws = create_connection(URL)
-print (ws)
-ws.send(final_sub)
-print("Sent")
-print("Receiving...")
-result =  ws.recv()
-print("Received '%s'" % result)
